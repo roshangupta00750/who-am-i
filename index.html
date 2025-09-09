@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="The interactive 3D portfolio of Roshan Kumar Gupta, a passionate software developer.">
+    <title>Roshan Kumar Gupta | Portfolio</title>
+    
+    <!-- Favicon (self-contained SVG) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- Google Fonts: Bebas Neue for titles, Inter for body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom Styles */
+        body {
+            background-color: #141414;
+            color: #e5e5e5;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
+        }
+        .font-netflix-title {
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 0.05em;
+        }
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            cursor: grab;
+        }
+        #bg-canvas:active { cursor: grabbing; }
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            overflow-y: auto;
+            transition: opacity 0.5s ease, visibility 0.5s;
+            z-index: 10;
+        }
+        .view.hidden {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
+        #browse-view {
+            z-index: 20;
+            pointer-events: none;
+        }
+        #browse-view > * { pointer-events: auto; }
+        .detail-view {
+            background: linear-gradient(to top, rgba(20,20,20,1) 70%, rgba(20,20,20,0));
+            z-index: 30;
+        }
+        .back-btn {
+             position: absolute;
+             top: 1.5rem;
+             left: 1.5rem;
+             background: rgba(0,0,0,0.5);
+             border-radius: 50%;
+             width: 40px;
+             height: 40px;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             cursor: pointer;
+             z-index: 50;
+        }
+        .episode-card {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+        }
+        .info-box {
+            position: absolute;
+            bottom: 15%; /* Adjusted for mobile footer */
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            z-index: 25;
+            text-align: center;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        .project-link-btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e50914;
+            color: #e50914;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .project-link-btn:hover {
+            background-color: #e50914;
+            color: white;
+        }
+        .social-link {
+            transition: transform 0.2s ease-in-out;
+        }
+        .social-link:hover {
+            transform: scale(1.1);
+        }
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #141414;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #e50914;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .text-label {
+            position: absolute;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: bold;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        .sleek-footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            color: #aaa;
+            border-top: 1px solid #333;
+        }
+        #main-footer {
+            position: absolute;
+            bottom: 1rem;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #666;
+            font-size: 0.75rem;
+            z-index: 25;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="flex flex-col items-center justify-center">
+        <div class="spinner"></div>
+        <p class="mt-4 text-gray-400">Initializing Galaxy...</p>
+    </div>
+
+    <canvas id="bg-canvas"></canvas>
+    
+    <!-- Mobile Navigation Arrows -->
+    <div id="mobile-nav" class="absolute inset-0 z-30 flex items-center justify-between p-4 pointer-events-none md:hidden">
+        <button id="nav-left" class="p-3 bg-gray-800 bg-opacity-50 rounded-full pointer-events-auto active:scale-90 transition-transform">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <button id="nav-right" class="p-3 bg-gray-800 bg-opacity-50 rounded-full pointer-events-auto active:scale-90 transition-transform">
+             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+    </div>
+
+    <!-- Main Browse UI (Overlay) -->
+    <div id="browse-view" class="view">
+        <header class="p-4 sm:p-8 flex justify-between items-center relative z-10">
+             <h1 class="text-3xl font-netflix-title text-red-600">ROSHAN KUMAR GUPTA</h1>
+             <div id="header-links" class="flex items-center gap-4">
+                <!-- Social links will be injected here by JS -->
+             </div>
+        </header>
+        <div class="info-box">
+            <h2 class="text-xl md:text-2xl font-bold">A Developer's Cut</h2>
+            <p class="text-sm text-gray-300">Click and drag to explore. Click an object to enter a section.</p>
+        </div>
+        <footer id="main-footer"></footer>
+    </div>
+
+    <!-- Detail Views -->
+    <div id="about-view" class="view hidden detail-view">
+        <button class="back-btn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+        <div class="p-8 pt-24 max-w-4xl mx-auto relative z-10">
+            <h2 class="text-4xl font-netflix-title mb-8">About Me</h2>
+            <div id="about-content"></div>
+            <footer class="detail-footer"></footer>
+        </div>
+    </div>
+    <div id="experience-view" class="view hidden detail-view">
+        <button class="back-btn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+        <div class="p-8 pt-24 max-w-4xl mx-auto relative z-10">
+            <h2 class="text-4xl font-netflix-title mb-8">Work Experience</h2>
+            <div id="experience-episodes"></div>
+            <footer class="detail-footer"></footer>
+        </div>
+    </div>
+    <div id="education-view" class="view hidden detail-view">
+        <button class="back-btn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+        <div class="p-8 pt-24 max-w-4xl mx-auto relative z-10">
+            <h2 class="text-4xl font-netflix-title mb-8">Education</h2>
+            <div id="education-episodes"></div>
+            <footer class="detail-footer"></footer>
+        </div>
+    </div>
+    <div id="projects-view" class="view hidden detail-view">
+        <button class="back-btn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+        <div class="p-8 pt-24 max-w-4xl mx-auto relative z-10">
+            <h2 class="text-4xl font-netflix-title mb-8">Featured Projects</h2>
+            <div id="projects-episodes"></div>
+            <footer class="detail-footer"></footer>
+        </div>
+    </div>
+    <div id="skills-view" class="view hidden detail-view">
+        <button class="back-btn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+        <div class="p-8 pt-24 max-w-4xl mx-auto relative z-10">
+            <h2 class="text-4xl font-netflix-title mb-8">My Tech Stack</h2>
+            <div id="skills-episodes" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            <footer class="detail-footer"></footer>
+        </div>
+    </div>
+
+
+    <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- DUMMY DATA ---
+        const dummyData = {
+            about: { description: "A results-driven Data Analyst with experience in e-commerce, retail, and finance. Proficient in Python, Machine Learning, SQL, and data visualization tools like Tableau and Power BI. Skilled in transforming large datasets into actionable insights, developing forecasting models, and automating processes to enhance business efficiency and decision-making." },
+            experience: [ 
+                { 
+                    title: 'Data Analyst - Ecomm, Retail & Finance', 
+                    subtitle: 'The Indian Garage Co (TIGC)', 
+                    date: 'Dec 2023 - July 2024', 
+                    description: `
+                        <p class="mb-2">Data Extraction and Cleaning: Extracted and cleaned 17.6M+ TIGC data records from Myntra, Ajio, Amazon, Flipkart, and Meesho using NumPy, Pandas, and Scrapy. Migrated data from Excel to SQLite and automated real-time Power BI dashboards for sales and inventory, enhancing decision-making speed.</p>
+                        <p class="mb-2">Dashboards and Forecasting: Developed automated dashboards and Prophet forecasting models for inventory optimization and sales forecasting using Python, achieving 15% sales growth (Feb-Mar 2023).</p>
+                        <p class="mb-2">Process Automation: Automated e-commerce reconciliation processes using Alteryx and Python, improving accuracy and efficiency in financial transactions and record-keeping.</p>
+                        <p class="mb-2">Inventory Image Automation: Automated inventory image processing and renaming using Python, OpenCV, NumPy, and Pandas, enabling faster go-live and increasing team efficiency by 35%.</p>
+                        <p class="mb-2">Sales Forecasting: Built ARIMA and Prophet-based sales forecast models, achieving 79.8% accuracy for Q4 2023 and 81.7% for Q1 2024.</p>
+                        <p class="mb-2">Customer Insights Analysis: Segmented customers and analyzed trends using Pandas and scikit-learn clustering, driving a 16% increase in retention rates.</p>
+                    `, 
+                    tags: ['Data Cleaning', 'Power BI', 'Forecasting', 'Python', 'Alteryx'] 
+                }, 
+                { 
+                    title: 'Process Associate - CMT & Amazon Pay', 
+                    subtitle: 'Amazon Development Center', 
+                    date: 'Oct 2020 - Dec 2023', 
+                    description: `
+                        <p class="mb-2">Elevated performance metrics through the development of interactive dashboards and the extraction of actionable insights, leading to a substantial improvement in feedback rate from 48% to 55% and resolution rate from 87% to 95%.</p>
+                        <p class="mb-2">Realized a 60% reduction in computation time for core company Key Performance Indicators (KPIs) by proficiently optimizing SQL code and conducting in-depth analysis of millions of records, thereby enhancing overall performance efficiency.</p>
+                        <p class="mb-2">Contributed to the successful launch of Zimbabwe Marketplace and drove substantial retail sales growth in Brazil & Portugal markets through strategic thinking and market insights, consistently boosting revenue and expanding market presence.</p>
+                        <p class="mb-2">Established a robust data and reporting infrastructure using Tableau and Alteryx, enabling real-time insights into product performance, marketing funnels, and key business KPIs with a high accuracy rate of 99.6%.</p>
+                        <p class="mb-2">Organized and cleaned pricing/cost data of 5000+ online products using MySQL and enabled pricing decisions, finally launching 1800+ products on Amazon.</p>
+                    `, 
+                    tags: ['SQL Optimization', 'Tableau', 'Alteryx', 'Market Launch'] 
+                },
+                { 
+                    title: 'Trainee Data Scientist', 
+                    subtitle: 'Numer8', 
+                    date: 'Feb 2020 - Apr 2020', 
+                    description: `
+                        <p class="mb-2">Utilize data-driven insights to inform business decisions and generate informative dashboards for visualization.</p>
+                        <p class="mb-2">Developed a sales forecasting model for a Mumbai-based beer company, enhancing predictive accuracy.</p>
+                        <p class="mb-2">Automated data collection from diverse sources using programming techniques.</p>
+                        <p class="mb-2">Created visual representations of insights using Power BI and Tableau.</p>
+                        <p class="mb-2">Developed standardized database for a Marathi news website and conducted sentiment analysis.</p>
+                    `, 
+                    tags: ['Sales Forecasting', 'Power BI', 'Tableau', 'Sentiment Analysis'] 
+                }
+            ],
+            education: [ 
+                { title: 'Masters of Computer Science', subtitle: 'Julius-Maximilians-Universität', date: 'Est. Oct 2026', description: 'Currently pursuing a Master\'s degree with a focus on advanced computer science principles.', tags: ['Computer Science', 'Graduate Studies'] },
+                { title: 'Bachelor of Information Science and Engineering', subtitle: 'New Horizon College of Engineering', date: 'Dec 2019', description: 'Graduated with a CGPA of 8.25. Gained a strong foundation in software engineering, database management, and information science.', tags: ['Information Science', 'Engineering', 'CGPA: 8.25'] }
+            ],
+            projects: [ 
+                { 
+                    title: 'Self Driving Car (Student Exchange Program)', 
+                    subtitle: 'CESI, Rouen, France', 
+                    description: `
+                        <p class="mb-2">Developed Convolutional Neural Networks (CNNs) tailored for self-driving applications using PyTorch, drawing insights from Nvidia's cutting-edge research.</p>
+                        <p class="mb-2">Proficiently managed data acquisition, preprocessing, and advanced techniques to enhance model performance.</p>
+                        <p class="mb-2">Trained a simplified version of Nvidia's architecture, optimizing results through PyTorch's Module class activation function.</p>
+                        <p class="mb-2">Attained exceptional precision in predicting steering angles using Mean Square Error loss and Adam optimizer.</p>
+                        <p class="mb-2">Demonstrated the capability of precise autonomous navigation within a simulator, validating the effectiveness of the developed models.</p>
+                        <p class="mb-2">Employed 3D point cloud techniques with Numpy, Matplotlib, and Pykitti to enrich data collection and analysis for comprehensive understanding.</p>
+                    `, 
+                    tags: ['PyTorch', 'CNN', 'Computer Vision', '3D Point Cloud'], liveUrl: '#', codeUrl: '#' 
+                },
+                { title: 'Smart India Hackathon 2.0', subtitle: 'Award Winner', description: 'Awarded in the Software Edition of the Smart India Hackathon 2.0 in 2018.', tags: ['Hackathon', 'Award', 'Software'], liveUrl: '#', codeUrl: '#' }
+            ],
+            skills: [ 
+                { title: 'Python', image: 'https://placehold.co/200x200/3776AB/ffffff?text=Python' }, 
+                { title: 'Machine Learning', image: 'https://placehold.co/200x200/000000/ffffff?text=ML' },
+                { title: 'SQL', image: 'https://placehold.co/200x200/F29111/ffffff?text=SQL' },
+                { title: 'Tableau', image: 'https://placehold.co/200x200/E97627/ffffff?text=Tableau' },
+                { title: 'Power BI', image: 'https://placehold.co/200x200/F2C811/000000?text=Power+BI' },
+                { title: 'Data Visualization', image: 'https://placehold.co/200x200/4E79A7/ffffff?text=Viz' },
+                { title: 'Docker', image: 'https://placehold.co/200x200/2496ED/ffffff?text=Docker' },
+                { title: 'Alteryx', image: 'https://placehold.co/200x200/00A9E0/ffffff?text=Alteryx' }
+            ]
+        };
+        const contactLinks = [
+            { name: 'LinkedIn', url: 'https://www.linkedin.com/in/roshan-gupta-a3a545107/', icon: `<svg fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>` },
+            { name: 'GitHub', url: 'https://github.com/roshangupta00750?tab=repositories', icon: `<svg fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>` },
+            { name: 'Email', url: 'mailto:mail.roshankumargupta@email.com', icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>` }
+        ];
+
+        // --- DOM Elements ---
+        const views = { browse: document.getElementById('browse-view'), about: document.getElementById('about-view'), experience: document.getElementById('experience-view'), education: document.getElementById('education-view'), projects: document.getElementById('projects-view'), skills: document.getElementById('skills-view'), };
+
+        // --- Card Creation ---
+        const createEpisodeCard = (item) => `<div class="episode-card"><h3 class="text-2xl font-bold mb-1">${item.title}</h3><p class="text-gray-400 mb-3">${item.subtitle} | ${item.date}</p><div class="text-gray-300 mb-4">${item.description}</div><div class="flex flex-wrap gap-2">${item.tags.map(tag => `<span class="bg-gray-700 text-xs font-semibold px-3 py-1 rounded-full">${tag}</span>`).join('')}</div></div>`;
+        const createProjectCard = (item) => `<div class="episode-card"><h3 class="text-2xl font-bold mb-1">${item.title}</h3><p class="text-gray-400 mb-3">${item.subtitle}</p><div class="text-gray-300 mb-4">${item.description}</div><div class="flex flex-wrap gap-2 mb-4">${item.tags.map(tag => `<span class="bg-gray-700 text-xs font-semibold px-3 py-1 rounded-full">${tag}</span>`).join('')}</div><div class="flex gap-4">${item.liveUrl ? `<a href="${item.liveUrl}" target="_blank" class="project-link-btn">View Live</a>` : ''}${item.codeUrl ? `<a href="${item.codeUrl}" target="_blank" class="project-link-btn">View Code</a>` : ''}</div></div>`;
+        const createSkillCard = (item) => `<div class="p-4 bg-gray-800 rounded-lg text-center"><img src="${item.image}" alt="${item.title}" class="w-24 h-24 rounded-full mx-auto mb-2"><h4 class="font-bold">${item.title}</h4></div>`;
+        
+        // --- Populate UI ---
+        document.getElementById('about-content').innerHTML = `<div class="episode-card"><p class="text-lg leading-relaxed">${dummyData.about.description}</p></div>`;
+        document.getElementById('experience-episodes').innerHTML = dummyData.experience.map(createEpisodeCard).join('');
+        document.getElementById('education-episodes').innerHTML = dummyData.education.map(createEpisodeCard).join('');
+        document.getElementById('projects-episodes').innerHTML = dummyData.projects.map(createProjectCard).join('');
+        document.getElementById('skills-episodes').innerHTML = dummyData.skills.map(createSkillCard).join('');
+        
+        const socialLinksHTML = contactLinks.map(link => `<a href="${link.url}" target="_blank" class="social-link text-white hover:text-red-600">${link.icon}</a>`).join('');
+        document.getElementById('header-links').innerHTML = socialLinksHTML;
+        const year = new Date().getFullYear();
+        const mainFooterHTML = `<p>© ${year} Roshan Kumar Gupta | Produced with Three.js, GSAP, & Tailwind CSS</p>`;
+        document.getElementById('main-footer').innerHTML = mainFooterHTML;
+        
+        const detailFooterHTML = `<div class="sleek-footer">${mainFooterHTML}</div>`;
+        document.querySelectorAll('.detail-footer').forEach(footer => footer.innerHTML = detailFooterHTML);
+
+        gsap.from("header h1, header #header-links", { duration: 1, y: -50, opacity: 0, ease: 'power2.out', delay: 0.5, stagger: 0.1 });
+        gsap.from(".info-box", { duration: 1, y: 50, opacity: 0, ease: 'power2.out', delay: 0.8 });
+
+        // --- THREE.JS SCENE ---
+        let scene, camera, renderer, labelRenderer, galaxy, stars, nebula, stardust;
+        let raycaster, mouse;
+        const interactiveObjects = [];
+        let currentIntersect = null;
+        let isDragging = false;
+        let dragOccurred = false; 
+        let previousMousePosition = { x: 0, y: 0 };
+        const initialCameraPosition = new THREE.Vector3(0, 0, 15);
+        let zoomActive = true;
+        let rotateLeft = false, rotateRight = false; // For mobile nav
+        
+        function initThree() {
+            scene = new THREE.Scene();
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(75, (isFinite(aspect) && aspect > 0) ? aspect : 16/9, 0.1, 1000);
+            camera.position.copy(initialCameraPosition);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Label Renderer
+            labelRenderer = new CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            document.body.appendChild(labelRenderer.domElement);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            galaxy = new THREE.Group();
+            scene.add(galaxy);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 5, 5);
+            scene.add(dirLight);
+
+            const starVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = THREE.MathUtils.randFloatSpread(200);
+                const y = THREE.MathUtils.randFloatSpread(200);
+                const z = THREE.MathUtils.randFloatSpread(200);
+                starVertices.push(x, y, z);
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0x888888, size: 0.1 }));
+            scene.add(stars);
+            
+            // --- Create Nebula with Shaders ---
+            const nebulaDistance = 150;
+            const vFOV = (camera.fov * Math.PI) / 180;
+            const planeHeight = 2 * Math.tan(vFOV / 2) * nebulaDistance;
+            const planeWidth = planeHeight * camera.aspect;
+
+            const nebulaGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+
+            const nebulaMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    u_time: { value: 0.0 },
+                    u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec2 u_resolution;
+                    uniform float u_time;
+                    varying vec2 vUv;
+
+                    float random (vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+                    float noise (vec2 st) {
+                        vec2 i = floor(st); vec2 f = fract(st);
+                        float a = random(i); float b = random(i + vec2(1.0, 0.0));
+                        float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0));
+                        vec2 u = f*f*(3.0-2.0*f);
+                        return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+                    }
+                    float fbm (vec2 st) {
+                        float value = 0.0; float amplitude = 0.5;
+                        for (int i = 0; i < 6; i++) {
+                            value += amplitude * noise(st); st *= 2.0; amplitude *= 0.5;
+                        } return value;
+                    }
+                    void main() {
+                        vec2 st = (vUv - 0.5) * 3.0; st.x *= u_resolution.x / u_resolution.y;
+                        vec3 color = vec3(0.0);
+                        vec2 q = vec2(fbm( st + 0.00*u_time), fbm( st + vec2(1.0)));
+                        vec2 r = vec2(fbm( st + 1.0*q + vec2(1.7,9.2)+ 0.15*u_time ), fbm( st + 1.0*q + vec2(8.3,2.8)+ 0.126*u_time));
+                        float f = fbm(st+r);
+
+                        // Vignette effect
+                        float d = length(vUv - vec2(0.5));
+                        float vignette = smoothstep(0.8, 0.2, d);
+
+                        color = mix(vec3(0.1,0.0,0.2), vec3(0.6,0.2,0.6), clamp((f*f)*4.0,0.0,1.0));
+                        color = mix(color, vec3(0.0,0.0,0.16), clamp(length(q),0.0,1.0));
+                        color = mix(color, vec3(0.9,0.7,0.8), clamp(length(r.x),0.0,1.0));
+                        gl_FragColor = vec4((f*f*f+.6*f*f+.5*f)*color * vignette, 1.);
+                    }
+                `,
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+
+            nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+            nebula.position.z = -nebulaDistance;
+            camera.add(nebula);
+            scene.add(camera);
+
+            // --- Stardust Mouse Trail ---
+            const stardustGeo = new THREE.BufferGeometry();
+            const stardustCount = 200;
+            const stardustPositions = new Float32Array(stardustCount * 3);
+            const stardustAlphas = new Float32Array(stardustCount);
+
+            for (let i = 0; i < stardustCount; i++) {
+                stardustPositions.set([10000, 10000, 10000], i * 3);
+                stardustAlphas[i] = 0;
+            }
+
+            stardustGeo.setAttribute('position', new THREE.BufferAttribute(stardustPositions, 3));
+            stardustGeo.setAttribute('alpha', new THREE.BufferAttribute(stardustAlphas, 1));
+            
+            const stardustMaterial = new THREE.ShaderMaterial({
+                uniforms: {},
+                vertexShader: `
+                    attribute float alpha;
+                    varying float vAlpha;
+                    void main() {
+                        vAlpha = alpha;
+                        vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                        gl_PointSize = vAlpha * ( 50.0 / -mvPosition.z );
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying float vAlpha;
+                    void main() {
+                        if ( vAlpha < 0.01 ) discard;
+                        float radialGradient = 1.0 - smoothstep(0.0, 0.5, length(gl_PointCoord - vec2(0.5)));
+                        gl_FragColor = vec4( 1.0, 1.0, 1.0, vAlpha * radialGradient );
+                    }
+                `,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            stardust = new THREE.Points(stardustGeo, stardustMaterial);
+            scene.add(stardust);
+
+
+            // Function to create a label
+            const createLabel = (text) => {
+                const div = document.createElement('div');
+                div.className = 'text-label';
+                div.textContent = text;
+                return new CSS2DObject(div);
+            };
+
+            // Define sections
+            const sections = [
+                { id: 'about', title: 'About Me', position: [0, -0.5, 0], factory: () => {
+                    const group = new THREE.Group();
+                    const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 16), new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5 }));
+                    head.position.y = 0.5;
+                    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 0.5, 4, 8), new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5 }));
+                    group.add(head, body);
+                    group.scale.set(0.8, 0.8, 0.8);
+                    return group;
+                }},
+                { id: 'experience', title: 'Work Experience', position: [-5.5, 2.5, 0], factory: () => new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.25, 16, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }))},
+                { id: 'projects', title: 'Projects', position: [5.5, 2.5, 0], factory: () => {
+                    const group = new THREE.Group();
+                    const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                    for (let i = 0; i < 5; i++) {
+                        const box = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: 0x61DAFB, roughness: 0.5 }));
+                        box.position.set((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5);
+                        group.add(box);
+                    }
+                    return group;
+                }},
+                { id: 'skills', title: 'Tech Stack', position: [-5.5, -2.5, 0], factory: () => {
+                    const group = new THREE.Group();
+                    group.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), new THREE.MeshStandardMaterial({ color: 0xE8D44D, roughness: 0.5 })));
+                    const orbit1 = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 16, 32), new THREE.MeshStandardMaterial({ color: 0xE8D44D, roughness: 0.5 }));
+                    orbit1.rotation.y = Math.PI / 2;
+                    group.add(orbit1);
+                    return group;
+                }},
+                { id: 'education', title: 'Education', position: [5.5, -2.5, 0], factory: () => {
+                    const group = new THREE.Group();
+                    const material = new THREE.MeshStandardMaterial({ color: 0xE50914, roughness: 0.5 });
+                    // Cap base
+                    const capBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 1.5), material);
+                    // Cap top
+                    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 0.8, 8), material);
+                    capTop.position.y = -0.45;
+                    // Tassel
+                    const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), material);
+                    tassel.position.set(0.4, -0.4, 0);
+                    group.add(capBase, capTop, tassel);
+                    group.rotation.x = -0.2;
+                    group.rotation.y = -0.3;
+                    return group;
+                 }}
+            ];
+
+            sections.forEach(section => {
+                const object = section.factory();
+                object.position.set(...section.position);
+                object.userData.id = section.id;
+                
+                const label = createLabel(section.title);
+                label.position.set(0, object.geometry?.parameters.height/2 + 1 || 1.5, 0);
+                object.add(label);
+
+                galaxy.add(object);
+                interactiveObjects.push(object);
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mousedown', () => { isDragging = true; dragOccurred = false; });
+            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('wheel', onMouseWheel);
+            window.addEventListener('touchstart', onTouchStart, { passive: false });
+            window.addEventListener('touchmove', onTouchMove, { passive: false });
+            window.addEventListener('touchend', onMouseUp);
+
+            document.querySelectorAll('.back-btn').forEach(btn => btn.addEventListener('click', goHome));
+
+             // Mobile Nav Arrows
+            const navLeft = document.getElementById('nav-left');
+            const navRight = document.getElementById('nav-right');
+            navLeft.addEventListener('mousedown', () => rotateLeft = true);
+            navLeft.addEventListener('mouseup', () => rotateLeft = false);
+            navLeft.addEventListener('mouseleave', () => rotateLeft = false);
+            navLeft.addEventListener('touchstart', (e) => { e.preventDefault(); rotateLeft = true; });
+            navLeft.addEventListener('touchend', () => rotateLeft = false);
+            navRight.addEventListener('mousedown', () => rotateRight = true);
+            navRight.addEventListener('mouseup', () => rotateRight = false);
+            navRight.addEventListener('mouseleave', () => rotateRight = false);
+            navRight.addEventListener('touchstart', (e) => { e.preventDefault(); rotateRight = true; });
+            navRight.addEventListener('touchend', () => rotateRight = false);
+
+
+            animate();
+            document.getElementById('loader').style.display = 'none';
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            if (nebula) {
+                nebula.material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+                
+                const nebulaDistance = 150;
+                const vFOV = (camera.fov * Math.PI) / 180;
+                const newHeight = 2 * Math.tan(vFOV / 2) * nebulaDistance;
+                const newWidth = newHeight * camera.aspect;
+
+                nebula.scale.set(
+                    newWidth / nebula.geometry.parameters.width, 
+                    newHeight / nebula.geometry.parameters.height, 
+                    1
+                );
+            }
+        }
+        
+        let stardustIndex = 0;
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            if (isDragging) {
+                dragOccurred = true;
+                galaxy.rotation.y += (event.clientX - previousMousePosition.x) * 0.005;
+                galaxy.rotation.x += (event.clientY - previousMousePosition.y) * 0.005;
+            } else {
+                 // Update stardust
+                const vec = new THREE.Vector3(mouse.x, mouse.y, 0.5);
+                vec.unproject(camera);
+                const dir = vec.sub(camera.position).normalize();
+                const distance = -camera.position.z / dir.z;
+                const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+                
+                const positions = stardust.geometry.attributes.position;
+                const alphas = stardust.geometry.attributes.alpha;
+
+                positions.setXYZ(stardustIndex, pos.x, pos.y, pos.z);
+                alphas.setX(stardustIndex, 1.0);
+                
+                stardustIndex = (stardustIndex + 1) % stardust.geometry.attributes.position.count;
+            }
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        }
+
+        function onTouchStart(event) {
+            if (event.touches.length === 1) {
+                isDragging = true;
+                dragOccurred = false;
+                previousMousePosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            }
+        }
+
+        function onTouchMove(event) {
+            if (event.touches.length === 1 && isDragging) {
+                event.preventDefault(); // Prevent page from scrolling
+                dragOccurred = true;
+                const deltaX = event.touches[0].clientX - previousMousePosition.x;
+                const deltaY = event.touches[0].clientY - previousMousePosition.y;
+                galaxy.rotation.y += deltaX * 0.005;
+                galaxy.rotation.x += deltaY * 0.005;
+                previousMousePosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            }
+        }
+        
+        function onMouseUp(event) {
+            if (!dragOccurred && currentIntersect) {
+                flyTo(currentIntersect.object);
+            }
+            isDragging = false;
+        }
+
+        function onMouseWheel(event) {
+            if (!zoomActive) return;
+            const zoomAmount = event.deltaY * 0.02; 
+            camera.position.z = Math.min(Math.max(camera.position.z + zoomAmount, 4), 60); 
+        }
+
+        function switchView(viewId, onComplete) {
+            zoomActive = !viewId; // Disable zoom on detail views
+            const activeView = Object.values(views).find(v => !v.classList.contains('hidden'));
+            if(activeView) {
+                gsap.to(activeView, { opacity: 0, duration: 0.3, onComplete: () => {
+                    activeView.classList.add('hidden');
+                    if (viewId) {
+                        const newView = views[viewId];
+                        newView.classList.remove('hidden');
+                        gsap.to(newView, { opacity: 1, duration: 0.3 });
+                        gsap.from(newView.querySelector('.p-8'), { duration: 0.5, y: 50, opacity: 0, delay: 0.3 });
+                    }
+                    if(onComplete) onComplete();
+                }});
+            } else if (viewId) {
+                const newView = views[viewId];
+                newView.classList.remove('hidden');
+                gsap.to(newView, { opacity: 1, duration: 0.3 });
+                gsap.from(newView.querySelector('.p-8'), { duration: 0.5, y: 50, opacity: 0, delay: 0.3 });
+            }
+        }
+
+        function flyTo(targetObject) {
+            let flyTarget = targetObject;
+             while (flyTarget.parent !== galaxy && flyTarget.parent !== null) {
+                flyTarget = flyTarget.parent;
+            }
+            if (!flyTarget || !flyTarget.userData.id) { return; }
+            
+            zoomActive = false;
+            gsap.to("#browse-view, .text-label, #mobile-nav", { opacity: 0, duration: 0.5 });
+            
+            const targetPosition = new THREE.Vector3();
+            flyTarget.getWorldPosition(targetPosition);
+            
+            gsap.to(camera.position, { duration: 1.5, x: targetPosition.x, y: targetPosition.y, z: targetPosition.z + 5, ease: 'power3.inOut' });
+            gsap.to(galaxy.rotation, { duration: 1.5, x: 0, y: 0, z: 0, ease: 'power3.inOut', onComplete: () => switchView(flyTarget.userData.id) });
+        }
+
+        function goHome() {
+            switchView(null, () => {
+                views.browse.classList.remove('hidden');
+                gsap.to("#browse-view, .text-label, #mobile-nav", { opacity: 1, duration: 0.5 });
+                zoomActive = true;
+            });
+            gsap.to(camera.position, { duration: 1.5, x: initialCameraPosition.x, y: initialCameraPosition.y, z: initialCameraPosition.z, ease: 'power3.inOut'});
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(interactiveObjects, true);
+            const firstIntersectResult = intersects.length > 0 ? intersects[0] : null;
+
+            if (currentIntersect !== firstIntersectResult) {
+                if (currentIntersect) {
+                     let oldParent = currentIntersect.object;
+                     while (oldParent.parent !== galaxy && oldParent.parent !== null) { oldParent = oldParent.parent; }
+                     oldParent.traverse(child => { if(child.material) gsap.to(child.material, { emissiveIntensity: 0, duration: 0.5 })});
+                }
+                
+                currentIntersect = firstIntersectResult;
+
+                if (currentIntersect) {
+                    let newParent = currentIntersect.object;
+                     while (newParent.parent !== galaxy && newParent.parent !== null) { newParent = newParent.parent; }
+                    newParent.traverse(child => { if(child.material) gsap.to(child.material, { emissive: new THREE.Color(child.material.color), emissiveIntensity: 0.5, duration: 0.5 })});
+                }
+            }
+
+            document.getElementById('bg-canvas').style.cursor = isDragging ? 'grabbing' : (currentIntersect ? 'pointer' : 'grab');
+            
+            // Handle mobile arrow rotation
+            if (rotateLeft) galaxy.rotation.y -= 0.01;
+            if (rotateRight) galaxy.rotation.y += 0.01;
+
+            if (!isDragging) {
+                galaxy.rotation.y += 0.0005; // Ambient rotation
+            }
+
+            // Animate stardust
+            const alphas = stardust.geometry.attributes.alpha;
+            const positions = stardust.geometry.attributes.position;
+            for(let i = 0; i < alphas.count; i++) {
+                if (alphas.getX(i) > 0) {
+                    alphas.setX(i, alphas.getX(i) - 0.02); // Fade out
+                    
+                    // Add slight drift
+                    positions.setX(i, positions.getX(i) + (Math.random() - 0.5) * 0.015);
+                    positions.setY(i, positions.getY(i) + (Math.random() - 0.5) * 0.015);
+                }
+            }
+            alphas.needsUpdate = true;
+            positions.needsUpdate = true;
+
+            stars.rotation.y += 0.0001;
+            nebula.material.uniforms.u_time.value = performance.now() / 5000;
+            
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        initThree();
+    </script>
+</body>
+</html>
+

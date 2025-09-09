@@ -33,5 +33,5 @@ This project presents a resume not as a static document, but as an **interactive
 ### Running Locally
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/interactive-3d-portfolio.git
-   cd interactive-3d-portfolio
+   git clone https://github.com/roshangupta00750/who-am-i
+   cd who-am-i

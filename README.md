@@ -6,7 +6,7 @@ This project presents a resume not as a static document, but as an **interactive
 ---
 
 ## 🚀 Live Demo
-👉 *(Add your GitHub Pages link here once deployed)*  
+👉 *https://roshangupta00750.github.io/who-am-i/*  
 
 ---
 

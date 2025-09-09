@@ -373,11 +373,15 @@
         const initialCameraPosition = new THREE.Vector3(0, 0, 15);
         let zoomActive = true;
         let rotateLeft = false, rotateRight = false; // For mobile nav
+        let sectionsData = [];
         
         function initThree() {
             scene = new THREE.Scene();
             const aspect = window.innerWidth / window.innerHeight;
             camera = new THREE.PerspectiveCamera(75, (isFinite(aspect) && aspect > 0) ? aspect : 16/9, 0.1, 1000);
+
+            // Set initial camera Z position based on aspect ratio
+            initialCameraPosition.z = aspect < 1 ? 25 : 15;
             camera.position.copy(initialCameraPosition);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
@@ -527,9 +531,8 @@
                 return new CSS2DObject(div);
             };
 
-            // Define sections
-            const sections = [
-                { id: 'about', title: 'About Me', position: [0, -0.5, 0], factory: () => {
+            sectionsData = [
+                { id: 'about', title: 'About Me', factory: () => {
                     const group = new THREE.Group();
                     const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 16), new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5 }));
                     head.position.y = 0.5;
@@ -538,8 +541,8 @@
                     group.scale.set(0.8, 0.8, 0.8);
                     return group;
                 }},
-                { id: 'experience', title: 'Work Experience', position: [-5.5, 2.5, 0], factory: () => new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.25, 16, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }))},
-                { id: 'projects', title: 'Projects', position: [5.5, 2.5, 0], factory: () => {
+                { id: 'experience', title: 'Work Experience', factory: () => new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.25, 16, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }))},
+                { id: 'projects', title: 'Projects', factory: () => {
                     const group = new THREE.Group();
                     const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
                     for (let i = 0; i < 5; i++) {
@@ -549,7 +552,7 @@
                     }
                     return group;
                 }},
-                { id: 'skills', title: 'Tech Stack', position: [-5.5, -2.5, 0], factory: () => {
+                { id: 'skills', title: 'Tech Stack', factory: () => {
                     const group = new THREE.Group();
                     group.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), new THREE.MeshStandardMaterial({ color: 0xE8D44D, roughness: 0.5 })));
                     const orbit1 = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 16, 32), new THREE.MeshStandardMaterial({ color: 0xE8D44D, roughness: 0.5 }));
@@ -557,15 +560,12 @@
                     group.add(orbit1);
                     return group;
                 }},
-                { id: 'education', title: 'Education', position: [5.5, -2.5, 0], factory: () => {
+                { id: 'education', title: 'Education', factory: () => {
                     const group = new THREE.Group();
                     const material = new THREE.MeshStandardMaterial({ color: 0xE50914, roughness: 0.5 });
-                    // Cap base
                     const capBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 1.5), material);
-                    // Cap top
                     const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 0.8, 8), material);
                     capTop.position.y = -0.45;
-                    // Tassel
                     const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), material);
                     tassel.position.set(0.4, -0.4, 0);
                     group.add(capBase, capTop, tassel);
@@ -575,18 +575,19 @@
                  }}
             ];
 
-            sections.forEach(section => {
+            sectionsData.forEach(section => {
                 const object = section.factory();
-                object.position.set(...section.position);
                 object.userData.id = section.id;
                 
                 const label = createLabel(section.title);
-                label.position.set(0, object.geometry?.parameters.height/2 + 1 || 1.5, 0);
+                label.position.set(0, 1.5, 0);
                 object.add(label);
 
                 galaxy.add(object);
                 interactiveObjects.push(object);
             });
+            
+            updateObjectPositions(true); // Initial setup without animation
 
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('mousemove', onMouseMove);
@@ -617,12 +618,44 @@
             animate();
             document.getElementById('loader').style.display = 'none';
         }
+
+        let lastKnownAspectRatio = 0;
+        function updateObjectPositions(immediate = false) {
+             const aspect = window.innerWidth / window.innerHeight;
+             if (aspect === lastKnownAspectRatio) return;
+             lastKnownAspectRatio = aspect;
+
+             const isPortrait = aspect < 1;
+             
+             initialCameraPosition.z = isPortrait ? 25 : 15;
+             if (!zoomActive) goHome();
+             else camera.position.z = initialCameraPosition.z;
+
+             const portraitPositions = { about: [0, 4.5, 0], experience: [-3.5, 0, 0], projects: [3.5, 0, 0], skills: [-3.5, -4.5, 0], education: [3.5, -4.5, 0]};
+             const landscapePositions = { about: [0, -0.5, 0], experience: [-5.5, 2.5, 0], projects: [5.5, 2.5, 0], skills: [-5.5, -2.5, 0], education: [5.5, -2.5, 0] };
+             const targetPositions = isPortrait ? portraitPositions : landscapePositions;
+
+             interactiveObjects.forEach(object => {
+                 const newPos = targetPositions[object.userData.id];
+                 if (immediate) {
+                     object.position.set(...newPos);
+                 } else {
+                     gsap.to(object.position, {
+                         x: newPos[0], y: newPos[1], z: newPos[2],
+                         duration: 0.8, ease: 'power3.inOut'
+                     });
+                 }
+             });
+        }
         
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             labelRenderer.setSize(window.innerWidth, window.innerHeight);
+
+            updateObjectPositions();
+
             if (nebula) {
                 nebula.material.uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
                 
@@ -648,7 +681,7 @@
                 dragOccurred = true;
                 galaxy.rotation.y += (event.clientX - previousMousePosition.x) * 0.005;
                 galaxy.rotation.x += (event.clientY - previousMousePosition.y) * 0.005;
-            } else {
+            } else if (zoomActive) {
                  // Update stardust
                 const vec = new THREE.Vector3(mouse.x, mouse.y, 0.5);
                 vec.unproject(camera);
@@ -697,7 +730,9 @@
         function onMouseWheel(event) {
             if (!zoomActive) return;
             const zoomAmount = event.deltaY * 0.02; 
-            camera.position.z = Math.min(Math.max(camera.position.z + zoomAmount, 4), 60); 
+            const aspect = window.innerWidth / window.innerHeight;
+            const zoomLimits = aspect < 1 ? { min: 8, max: 70 } : { min: 4, max: 60 };
+            camera.position.z = Math.min(Math.max(camera.position.z + zoomAmount, zoomLimits.min), zoomLimits.max);
         }
 
         function switchView(viewId, onComplete) {
@@ -786,7 +821,7 @@
             const positions = stardust.geometry.attributes.position;
             for(let i = 0; i < alphas.count; i++) {
                 if (alphas.getX(i) > 0) {
-                    alphas.setX(i, alphas.getX(i) - 0.02); // Fade out
+                    alphas.setX(i, alphas.getX(i) - 0.015); // Fade out
                     
                     // Add slight drift
                     positions.setX(i, positions.getX(i) + (Math.random() - 0.5) * 0.015);

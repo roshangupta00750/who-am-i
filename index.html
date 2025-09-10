@@ -370,7 +370,7 @@
         let isDragging = false;
         let dragOccurred = false; 
         let previousMousePosition = { x: 0, y: 0 };
-        const initialCameraPosition = new THREE.Vector3(0, 0, 15);
+        let initialCameraPosition = new THREE.Vector3(0, 0, 15);
         let zoomActive = true;
         let rotateLeft = false, rotateRight = false; // For mobile nav
         let sectionsData = [];
@@ -622,16 +622,18 @@
         let lastKnownAspectRatio = 0;
         function updateObjectPositions(immediate = false) {
              const aspect = window.innerWidth / window.innerHeight;
-             if (aspect === lastKnownAspectRatio) return;
+             // Only update if the orientation changes significantly
+             if (Math.sign(aspect - 1) === Math.sign(lastKnownAspectRatio - 1) && !immediate) return;
              lastKnownAspectRatio = aspect;
 
              const isPortrait = aspect < 1;
              
              initialCameraPosition.z = isPortrait ? 25 : 15;
-             if (!zoomActive) goHome();
-             else camera.position.z = initialCameraPosition.z;
+              if (zoomActive) {
+                camera.position.z = initialCameraPosition.z;
+             }
 
-             const portraitPositions = { about: [0, 4.5, 0], experience: [-3.5, 0, 0], projects: [3.5, 0, 0], skills: [-3.5, -4.5, 0], education: [3.5, -4.5, 0]};
+             const portraitPositions = { about: [0, 5, 0], experience: [0, 0, 0], projects: [0, -5, 0], skills: [0, -10, 0], education: [0, 10, 0]};
              const landscapePositions = { about: [0, -0.5, 0], experience: [-5.5, 2.5, 0], projects: [5.5, 2.5, 0], skills: [-5.5, -2.5, 0], education: [5.5, -2.5, 0] };
              const targetPositions = isPortrait ? portraitPositions : landscapePositions;
 

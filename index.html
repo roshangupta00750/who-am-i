@@ -374,6 +374,7 @@
         let zoomActive = true;
         let rotateLeft = false, rotateRight = false; // For mobile nav
         let sectionsData = [];
+        const isMobile = window.innerWidth < 768;
         
         function initThree() {
             scene = new THREE.Scene();
@@ -385,6 +386,7 @@
             camera.position.copy(initialCameraPosition);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Performance optimization
             renderer.setSize(window.innerWidth, window.innerHeight);
 
             // Label Renderer
@@ -405,8 +407,9 @@
             dirLight.position.set(5, 5, 5);
             scene.add(dirLight);
 
+            const starCount = isMobile ? 3000 : 10000;
             const starVertices = [];
-            for (let i = 0; i < 10000; i++) {
+            for (let i = 0; i < starCount; i++) {
                 const x = THREE.MathUtils.randFloatSpread(200);
                 const y = THREE.MathUtils.randFloatSpread(200);
                 const z = THREE.MathUtils.randFloatSpread(200);
@@ -482,45 +485,47 @@
             scene.add(camera);
 
             // --- Stardust Mouse Trail ---
-            const stardustGeo = new THREE.BufferGeometry();
-            const stardustCount = 200;
-            const stardustPositions = new Float32Array(stardustCount * 3);
-            const stardustAlphas = new Float32Array(stardustCount);
+            if (!isMobile) {
+                const stardustGeo = new THREE.BufferGeometry();
+                const stardustCount = 200;
+                const stardustPositions = new Float32Array(stardustCount * 3);
+                const stardustAlphas = new Float32Array(stardustCount);
 
-            for (let i = 0; i < stardustCount; i++) {
-                stardustPositions.set([10000, 10000, 10000], i * 3);
-                stardustAlphas[i] = 0;
+                for (let i = 0; i < stardustCount; i++) {
+                    stardustPositions.set([10000, 10000, 10000], i * 3);
+                    stardustAlphas[i] = 0;
+                }
+
+                stardustGeo.setAttribute('position', new THREE.BufferAttribute(stardustPositions, 3));
+                stardustGeo.setAttribute('alpha', new THREE.BufferAttribute(stardustAlphas, 1));
+                
+                const stardustMaterial = new THREE.ShaderMaterial({
+                    uniforms: {},
+                    vertexShader: `
+                        attribute float alpha;
+                        varying float vAlpha;
+                        void main() {
+                            vAlpha = alpha;
+                            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                            gl_PointSize = vAlpha * ( 50.0 / -mvPosition.z );
+                            gl_Position = projectionMatrix * mvPosition;
+                        }
+                    `,
+                    fragmentShader: `
+                        varying float vAlpha;
+                        void main() {
+                            if ( vAlpha < 0.01 ) discard;
+                            float radialGradient = 1.0 - smoothstep(0.0, 0.5, length(gl_PointCoord - vec2(0.5)));
+                            gl_FragColor = vec4( 1.0, 1.0, 1.0, vAlpha * radialGradient );
+                        }
+                    `,
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                stardust = new THREE.Points(stardustGeo, stardustMaterial);
+                scene.add(stardust);
             }
-
-            stardustGeo.setAttribute('position', new THREE.BufferAttribute(stardustPositions, 3));
-            stardustGeo.setAttribute('alpha', new THREE.BufferAttribute(stardustAlphas, 1));
-            
-            const stardustMaterial = new THREE.ShaderMaterial({
-                uniforms: {},
-                vertexShader: `
-                    attribute float alpha;
-                    varying float vAlpha;
-                    void main() {
-                        vAlpha = alpha;
-                        vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-                        gl_PointSize = vAlpha * ( 50.0 / -mvPosition.z );
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
-                fragmentShader: `
-                    varying float vAlpha;
-                    void main() {
-                        if ( vAlpha < 0.01 ) discard;
-                        float radialGradient = 1.0 - smoothstep(0.0, 0.5, length(gl_PointCoord - vec2(0.5)));
-                        gl_FragColor = vec4( 1.0, 1.0, 1.0, vAlpha * radialGradient );
-                    }
-                `,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            stardust = new THREE.Points(stardustGeo, stardustMaterial);
-            scene.add(stardust);
 
 
             // Function to create a label
@@ -683,7 +688,7 @@
                 dragOccurred = true;
                 galaxy.rotation.y += (event.clientX - previousMousePosition.x) * 0.005;
                 galaxy.rotation.x += (event.clientY - previousMousePosition.y) * 0.005;
-            } else if (zoomActive) {
+            } else if (zoomActive && stardust) {
                  // Update stardust
                 const vec = new THREE.Vector3(mouse.x, mouse.y, 0.5);
                 vec.unproject(camera);
@@ -819,19 +824,21 @@
             }
 
             // Animate stardust
-            const alphas = stardust.geometry.attributes.alpha;
-            const positions = stardust.geometry.attributes.position;
-            for(let i = 0; i < alphas.count; i++) {
-                if (alphas.getX(i) > 0) {
-                    alphas.setX(i, alphas.getX(i) - 0.015); // Fade out
-                    
-                    // Add slight drift
-                    positions.setX(i, positions.getX(i) + (Math.random() - 0.5) * 0.015);
-                    positions.setY(i, positions.getY(i) + (Math.random() - 0.5) * 0.015);
+            if (stardust) {
+                const alphas = stardust.geometry.attributes.alpha;
+                const positions = stardust.geometry.attributes.position;
+                for(let i = 0; i < alphas.count; i++) {
+                    if (alphas.getX(i) > 0) {
+                        alphas.setX(i, alphas.getX(i) - 0.015); // Fade out
+                        
+                        // Add slight drift
+                        positions.setX(i, positions.getX(i) + (Math.random() - 0.5) * 0.015);
+                        positions.setY(i, positions.getY(i) + (Math.random() - 0.5) * 0.015);
+                    }
                 }
+                alphas.needsUpdate = true;
+                positions.needsUpdate = true;
             }
-            alphas.needsUpdate = true;
-            positions.needsUpdate = true;
 
             stars.rotation.y += 0.0001;
             nebula.material.uniforms.u_time.value = performance.now() / 5000;
